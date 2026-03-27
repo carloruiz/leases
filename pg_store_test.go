@@ -12,14 +12,14 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-//go:embed schema.crdb.sql
-var crdbSchema string
+//go:embed schema.pg.sql
+var pgSchema string
 
-func testCRDBStore(t *testing.T) (*CRDBStore, *sql.DB, context.Context) {
+func testPGStore(t *testing.T) (*PGStore, *sql.DB, context.Context) {
 	t.Helper()
-	dsn := os.Getenv("LEASES_TEST_CRDB_DSN")
+	dsn := os.Getenv("LEASES_TEST_PG_DSN")
 	if dsn == "" {
-		t.Skip("LEASES_TEST_CRDB_DSN not set")
+		t.Skip("LEASES_TEST_PG_DSN not set")
 	}
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
@@ -30,7 +30,7 @@ func testCRDBStore(t *testing.T) (*CRDBStore, *sql.DB, context.Context) {
 	ctx := context.Background()
 
 	// Create table (idempotent).
-	if _, err := db.ExecContext(ctx, crdbSchema); err != nil {
+	if _, err := db.ExecContext(ctx, pgSchema); err != nil {
 		t.Fatal(err)
 	}
 	// Truncate between tests.
@@ -38,11 +38,11 @@ func testCRDBStore(t *testing.T) (*CRDBStore, *sql.DB, context.Context) {
 		t.Fatal(err)
 	}
 
-	return NewCRDBStore(), db, ctx
+	return NewPGStore(), db, ctx
 }
 
-func TestCRDBCreateAndDelete(t *testing.T) {
-	store, db, ctx := testCRDBStore(t)
+func TestPGCreateAndDelete(t *testing.T) {
+	store, db, ctx := testPGStore(t)
 
 	// Create a resource.
 	if err := store.Create(ctx, db, "group-a", "res-1"); err != nil {
@@ -65,8 +65,8 @@ func TestCRDBCreateAndDelete(t *testing.T) {
 	}
 }
 
-func TestCRDBDeleteActiveLeaseBlocked(t *testing.T) {
-	store, db, ctx := testCRDBStore(t)
+func TestPGDeleteActiveLeaseBlocked(t *testing.T) {
+	store, db, ctx := testPGStore(t)
 
 	if err := store.Create(ctx, db, "g", "res-1"); err != nil {
 		t.Fatal(err)
@@ -81,8 +81,8 @@ func TestCRDBDeleteActiveLeaseBlocked(t *testing.T) {
 	}
 }
 
-func TestCRDBAcquireAndRelease(t *testing.T) {
-	store, db, ctx := testCRDBStore(t)
+func TestPGAcquireAndRelease(t *testing.T) {
+	store, db, ctx := testPGStore(t)
 
 	if err := store.Create(ctx, db, "g", "res-1"); err != nil {
 		t.Fatal(err)
@@ -123,8 +123,8 @@ func TestCRDBAcquireAndRelease(t *testing.T) {
 	}
 }
 
-func TestCRDBReleaseWithWrongToken(t *testing.T) {
-	store, db, ctx := testCRDBStore(t)
+func TestPGReleaseWithWrongToken(t *testing.T) {
+	store, db, ctx := testPGStore(t)
 
 	if err := store.Create(ctx, db, "g", "res-1"); err != nil {
 		t.Fatal(err)
@@ -139,8 +139,8 @@ func TestCRDBReleaseWithWrongToken(t *testing.T) {
 	}
 }
 
-func TestCRDBHeartbeat(t *testing.T) {
-	store, db, ctx := testCRDBStore(t)
+func TestPGHeartbeat(t *testing.T) {
+	store, db, ctx := testPGStore(t)
 
 	if err := store.Create(ctx, db, "g", "res-1"); err != nil {
 		t.Fatal(err)
@@ -161,8 +161,8 @@ func TestCRDBHeartbeat(t *testing.T) {
 	}
 }
 
-func TestCRDBHeartbeatWrongToken(t *testing.T) {
-	store, db, ctx := testCRDBStore(t)
+func TestPGHeartbeatWrongToken(t *testing.T) {
+	store, db, ctx := testPGStore(t)
 
 	if err := store.Create(ctx, db, "g", "res-1"); err != nil {
 		t.Fatal(err)
@@ -177,8 +177,8 @@ func TestCRDBHeartbeatWrongToken(t *testing.T) {
 	}
 }
 
-func TestCRDBAcquireMany(t *testing.T) {
-	store, db, ctx := testCRDBStore(t)
+func TestPGAcquireMany(t *testing.T) {
+	store, db, ctx := testPGStore(t)
 
 	for _, r := range []string{"res-1", "res-2", "res-3"} {
 		if err := store.Create(ctx, db, "batch", r); err != nil {
@@ -210,8 +210,8 @@ func TestCRDBAcquireMany(t *testing.T) {
 	}
 }
 
-func TestCRDBHeartbeatMany(t *testing.T) {
-	store, db, ctx := testCRDBStore(t)
+func TestPGHeartbeatMany(t *testing.T) {
+	store, db, ctx := testPGStore(t)
 
 	for _, r := range []string{"res-1", "res-2"} {
 		if err := store.Create(ctx, db, "g", r); err != nil {
@@ -246,8 +246,8 @@ func TestCRDBHeartbeatMany(t *testing.T) {
 	}
 }
 
-func TestCRDBHeartbeatManyEmpty(t *testing.T) {
-	store, db, ctx := testCRDBStore(t)
+func TestPGHeartbeatManyEmpty(t *testing.T) {
+	store, db, ctx := testPGStore(t)
 	leases, err := store.HeartbeatMany(ctx, db, nil, time.Minute)
 	if err != nil {
 		t.Fatal(err)
@@ -257,8 +257,8 @@ func TestCRDBHeartbeatManyEmpty(t *testing.T) {
 	}
 }
 
-func TestCRDBAcquireNonexistent(t *testing.T) {
-	store, db, ctx := testCRDBStore(t)
+func TestPGAcquireNonexistent(t *testing.T) {
+	store, db, ctx := testPGStore(t)
 
 	// Acquire a resource that was never created.
 	if _, err := store.Acquire(ctx, db, "ghost", "owner-a", time.Minute); !errors.Is(err, ErrNotAcquired) {

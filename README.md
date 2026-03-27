@@ -1,5 +1,7 @@
 # Lease Module
 
+> **Note:** PostgreSQL support is implemented but not yet tested against a live database.
+
 ## Overview
 
 The lease module provides distributed, time-bound ownership of named resources.
