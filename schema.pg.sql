@@ -1,0 +1,2 @@
+-- TODO: PostgreSQL schema for leases table.
+-- See schema.crdb.sql for the CockroachDB reference implementation.
