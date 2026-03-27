@@ -28,6 +28,44 @@ implementation (e.g. `CRDBStore` for CockroachDB).
 
 ---
 
+## Getting Started
+
+### 1. Install the module
+
+```
+go get github.com/carloruiz/leases
+```
+
+### 2. Add the schema to your migrations
+
+Copy the schema file that matches your database into your migration framework:
+
+```
+schema.crdb.sql    — CockroachDB
+schema.pg.sql      — PostgreSQL (future)
+```
+
+### 3. Use the store
+
+```go
+import "github.com/carloruiz/leases"
+
+db, _ := sql.Open("pgx", dsn)
+store := leases.NewCRDBStore()
+
+// Pass db directly for standalone operations.
+store.Create(ctx, db, "workers", "worker-1")
+lease, _ := store.Acquire(ctx, db, "worker-1", "host-a", 30*time.Second)
+
+// Or pass a *sql.Tx to participate in a caller-controlled transaction.
+tx, _ := db.BeginTx(ctx, nil)
+store.Heartbeat(ctx, tx, "worker-1", *lease.LeaseToken, 30*time.Second)
+// ... other application writes ...
+tx.Commit()
+```
+
+---
+
 ## Non-Goals
 
 - Fair scheduling
