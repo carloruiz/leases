@@ -79,13 +79,6 @@ Expired leases remain in the table and can be reclaimed.
 ## API
 
 ```go
-// DBTX is implemented by *sql.DB, *sql.Tx, and *sql.Conn.
-type DBTX interface {
-    ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-    QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-    QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
 type Lease struct {
     Resource   string
     Group      string
