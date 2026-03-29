@@ -65,6 +65,35 @@ func TestPGCreateAndDelete(t *testing.T) {
 	}
 }
 
+func TestPGCreateAndAcquire(t *testing.T) {
+	store, db, ctx := testPGStore(t)
+
+	// CreateAndAcquire returns a held lease.
+	lease, err := store.CreateAndAcquire(ctx, db, "g", "res-1", "owner-a", 30*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lease.LeaseToken == nil {
+		t.Fatal("expected non-nil LeaseToken")
+	}
+	if lease.ClaimedBy == nil || *lease.ClaimedBy != "owner-a" {
+		t.Fatalf("expected claimed_by=owner-a, got %v", lease.ClaimedBy)
+	}
+	if lease.ExpiresAt == nil || lease.ExpiresAt.Before(time.Now()) {
+		t.Fatal("expected expires_at in the future")
+	}
+
+	// Second CreateAndAcquire on same resource returns ErrNotAcquired.
+	if _, err := store.CreateAndAcquire(ctx, db, "g", "res-1", "owner-b", 30*time.Second); !errors.Is(err, ErrNotAcquired) {
+		t.Fatalf("expected ErrNotAcquired, got %v", err)
+	}
+
+	// The original lease is still valid — heartbeat succeeds.
+	if _, err := store.Heartbeat(ctx, db, "res-1", *lease.LeaseToken, 30*time.Second); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestPGDeleteActiveLeaseBlocked(t *testing.T) {
 	store, db, ctx := testPGStore(t)
 

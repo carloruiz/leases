@@ -33,6 +33,7 @@ type HeartbeatRequest struct {
 // Store defines the interface for lease operations.
 type Store interface {
 	Create(ctx context.Context, db DBTX, group, resource string) error
+	CreateAndAcquire(ctx context.Context, db DBTX, group, resource, owner string, duration time.Duration) (*Lease, error)
 	Delete(ctx context.Context, db DBTX, resource string) error
 
 	Acquire(ctx context.Context, db DBTX, resource string, owner string, duration time.Duration) (*Lease, error)

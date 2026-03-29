@@ -25,6 +25,27 @@ func (s *PGStore) Create(ctx context.Context, db DBTX, group, resource string) e
 	return err
 }
 
+func (s *PGStore) CreateAndAcquire(ctx context.Context, db DBTX, group, resource, owner string, duration time.Duration) (*Lease, error) {
+	token, err := NewLeaseToken()
+	if err != nil {
+		return nil, fmt.Errorf("generating token: %w", err)
+	}
+	interval := formatInterval(duration)
+
+	row := db.QueryRowContext(ctx,
+		`INSERT INTO leases (resource_name, group_name, lease_token, claimed_by, claimed_at, expires_at)
+		 VALUES ($1, $2, $3, $4, now(), now() + $5::INTERVAL)
+		 ON CONFLICT (resource_name) DO NOTHING
+		 RETURNING resource_name, group_name, lease_token, claimed_by, claimed_at, expires_at`,
+		resource, group, token.String(), owner, interval)
+
+	lease, err := scanLease(row)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotAcquired
+	}
+	return lease, err
+}
+
 func (s *PGStore) Delete(ctx context.Context, db DBTX, resource string) error {
 	res, err := db.ExecContext(ctx,
 		`DELETE FROM leases
