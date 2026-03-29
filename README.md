@@ -289,6 +289,34 @@ and apply the alteration manually (e.g. `ALTER TABLE` in a migration script).
 
 ---
 
+## Scaling Limitations
+
+This module is designed for small-scale use — fewer than 1,000 concurrent leases.
+It trades scalability for simplicity and minimal dependencies. Here is where the
+design starts to break down:
+
+- **Heartbeat write amplification.** Every held lease generates a periodic
+  `UPDATE` to `expires_at`. With thousands of leases and short TTLs, this creates
+  sustained write pressure on a single table.
+
+- **`AcquireMany` contention.** The CTE scans expired rows and updates them in
+  one statement. When multiple callers race to acquire from the same group,
+  CockroachDB's serializable isolation causes transaction retries and PostgreSQL
+  encounters row-level lock contention.
+
+- **`HeartbeatMany` query size.** The `VALUES` clause grows linearly with batch
+  size. Very large batches can hit query size limits or reduce plan cache
+  efficiency.
+
+- **Single-table design.** All leases share one table and index with no
+  partitioning or sharding.
+
+If you need more than a few thousand concurrent leases, consider a purpose-built
+coordination system (etcd, ZooKeeper, Redis Redlock) or, if staying with SQL,
+partitioning the leases table by group.
+
+---
+
 ## Summary
 
 - Single table (`leases`)
